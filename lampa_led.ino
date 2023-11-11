@@ -14,7 +14,8 @@ int movement = 0;
 int irCode = 0;
 bool occupancy = false;
 int counter = 0;
-bool glowing = false;
+bool lowLightMode = false;
+int lowLight = 10; //0 to 255 analog low light level
 
 void setup() {
   Serial.begin(9600);
@@ -37,28 +38,39 @@ void loop() {
     switch (mode) {
     case 1:
       // human gody induction
-      checkPir();
-      if (movement==HIGH){
-        light(true);
-      }
-      else {
-        light(false);
-      }
-    break;
-
-    case 2:
-        // human gody induction +  low light mode
       checkSolarCharging();
       if(solarCharging==false){
         checkPir();
         if (movement==HIGH){
-          light(true);
+          light(true, mode);
         }
         else {
-          light(false);
+          light(false, mode);
         }
       }
       else if(solarCharging==true){
+        digitalWrite(MOSFET, LOW);
+      }
+    break;
+
+    case 2:
+      // human gody induction +  low light mode
+      checkSolarCharging();
+      if(solarCharging==false){
+        if (lowLightMode == false){
+          analogWrite(MOSFET, lowLight);
+          lowLightMode = true;
+        }
+        checkPir();
+        if (movement==HIGH){
+          light(true, mode);
+        }
+        else {
+          light(false, mode);
+        }
+      }
+      else if(solarCharging==true){
+        lowLightMode = false;
         digitalWrite(MOSFET, LOW);
       }
     break;
@@ -67,7 +79,8 @@ void loop() {
     //low light mode
       checkSolarCharging();
       if(solarCharging==false){
-        digitalWrite(MOSFET, HIGH);
+        //digitalWrite(MOSFET, HIGH);
+        analogWrite(MOSFET, lowLight);
       }
       else if(solarCharging==true) {
         digitalWrite(MOSFET, LOW);
@@ -96,13 +109,13 @@ void loop() {
 
 void checkSolarCharging(){
   solarValue = analogRead(solarPanel);
-  if (solarValue >=200){
+  if (solarValue >=300){
     if(solarCharging==false){
       Serial.println("Solar charging changed to true"); 
     }
     solarCharging = true;
   }
-  else if(solarValue <=30){
+  else if(solarValue <=50){
     if(solarCharging==true){
       Serial.println("Solar charging changed to false"); 
     }
@@ -154,6 +167,7 @@ void irDecoder(int irCode) {
       EEPROM.write(memory, mode);
       Serial.println("Mode changed to: ");
       Serial.println(mode);
+      digitalWrite(MOSFET, LOW);
       delay(200);
       for(int i = 1; i <= mode; i++){
         digitalWrite(MOSFET,   HIGH);
@@ -169,6 +183,7 @@ void irDecoder(int irCode) {
       Serial.println("Mode changed to: ");
       Serial.println(mode);
       EEPROM.write(memory, mode);
+      digitalWrite(MOSFET, LOW);
       delay(200);
       for(int i = 1; i <= mode; i++){
         digitalWrite(MOSFET,   HIGH);
@@ -184,6 +199,7 @@ void irDecoder(int irCode) {
       Serial.println("Mode changed to: ");
       Serial.println(mode);
       EEPROM.write(memory, mode);
+      digitalWrite(MOSFET, LOW);
       delay(200);
       for(int i = 1; i <= mode; i++){
         digitalWrite(MOSFET,   HIGH);
@@ -210,6 +226,7 @@ void checkButton(){
     Serial.println("Mode changed to:");
     Serial.println(mode);
     EEPROM.write(memory, mode);
+    digitalWrite(MOSFET, LOW);
     delay(200);
     for(int i = 1; i <= mode; i++){
       digitalWrite(MOSFET,   HIGH);
@@ -232,18 +249,20 @@ void checkPir(){
   }
 }
 
-void light(bool state){
+void light(bool state, int mode){
   if(state == true){
-    if(glowing==false){
-      digitalWrite(MOSFET,   HIGH);
-    }
+    digitalWrite(MOSFET,   HIGH);
     savedTime=millis();
-    glowing=true;
   }
-  else if (state == false){
+  else if (state == false && mode != 2){
     if (millis()-savedTime >= 15000UL){ //15sec
       digitalWrite(MOSFET, LOW);
-      glowing=false;
+    }
+  }
+  else if(state == false && mode == 2){
+    //for low light mode
+    if (millis()-savedTime >= 15000UL){ //15sec
+      analogWrite(MOSFET, lowLight);
     }
   }
 }
