@@ -4,8 +4,8 @@
 #define MOSFET 5
 #include <IRremote.h>
 #include <EEPROM.h>
-//int solarPanel = A7;
-//bool solarCharging = false;
+int solarPanel = A7;
+bool solarCharging = false;
 int mode = 2;
 int memory = 0;
 int solarValue = 0;
@@ -14,6 +14,7 @@ int movement = 0;
 int irCode = 0;
 bool occupancy = false;
 int counter = 0;
+bool glowing = false;
 
 void setup() {
   Serial.begin(9600);
@@ -95,7 +96,7 @@ void loop() {
 
 void checkSolarCharging(){
   solarValue = analogRead(solarPanel);
-  if (solarValue >=100){
+  if (solarValue >=200){
     if(solarCharging==false){
       Serial.println("Solar charging changed to true"); 
     }
@@ -233,13 +234,16 @@ void checkPir(){
 
 void light(bool state){
   if(state == true){
-    digitalWrite(MOSFET,   HIGH);
+    if(glowing==false){
+      digitalWrite(MOSFET,   HIGH);
+    }
     savedTime=millis();
-    
+    glowing=true;
   }
   else if (state == false){
     if (millis()-savedTime >= 15000UL){ //15sec
       digitalWrite(MOSFET, LOW);
+      glowing=false;
     }
   }
 }
